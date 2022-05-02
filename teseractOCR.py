@@ -15,7 +15,7 @@ from format_text import normalize_text
 #pytesseract.pytesseract.tesseract_cmd = r".\Tesseract-OCR\\tesseract.exe"
 
 # Get the path tesseract-ocr if we place it in default directory
-pytesseract.pytesseract.tesseract_cmd = r"C:\\Program Files\\Tesseract-OCR\\tesseract.exe"
+#pytesseract.pytesseract.tesseract_cmd = r"C:\\Program Files\\Tesseract-OCR\\tesseract.exe"
 
 def post_process(str):
     """

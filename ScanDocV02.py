@@ -5,7 +5,9 @@ import skimage.filters.thresholding as threshold
 import ExtendCV as exCV
 import numpy as np
 import imutils as im
-import matplotlib.pyplot as plt
+import matplotlib
+matplotlib.use("TkAgg")
+from matplotlib import pyplot as plt
 import itertools
 import math
 import cv2
@@ -91,7 +93,7 @@ class DocScanner:
         if lsd_implementation == "pylsd":
             lines = lsd(img)
             
-        if lsd_implementation == "opencv":    
+        if lsd_implementation == "opencv":
             linesegmentdetected = cv2.createLineSegmentDetector(0)
             lines = linesegmentdetected.detect(img)[0]
         
@@ -246,14 +248,14 @@ class DocScanner:
         """
             Make the interactive with contours
         """
-        poly = Polygon(screenCnt, animated=True, fill=False, color="yellow", linewidth=5)
-        fig, ax = plt.subplots()
+        poly = Polygon(screenCnt, animated=True, fill=False, color="yellow", linewidth=5)       
+        fig = plt.figure(figsize=(10, 8), num = "adjust contours")
+        ax = plt.axes(title = 'Drag the corners of the box to the corners of the document. \n'
+            'Close the window when finished.')
         ax.add_patch(poly)
-        ax.set_title(('Drag the corners of the box to the corners of the document. \n'
-            'Close the window when finished.'))
         p = poly_i.PolygonInteractor(ax, poly)
         plt.imshow(rescaled_image)
-        plt.show()
+        plt.show()  
 
         new_points = p.get_poly_points()[:4]
         new_points = np.array([[p] for p in new_points], dtype = "int32")
@@ -301,38 +303,47 @@ class DocScanner:
 
         # save the image
         basename = os.path.basename(image_path)
-        cv2.imwrite(".\Images\\adaptiveThreshold\\" + basename, thresh)
+        cv2.imwrite("/home/pi/Scan_Documents/Images/adaptiveThreshold/" + basename, thresh)
         
         # show the transformed image
         stack = [[rescaled_image, warped, sharpen, thresh]]
         label = [["Original", "warped", "Sharpen", "Threshold"]]
         stackImg = exCV.stackImages(0.75, stack, label)
         
+        # create the windows for show workflow
+        cv2.namedWindow("WorkFlow")
+        
         #See WorkFlow for the image processing
         cv2.imshow("WorkFlow", stackImg)
         
-        while True:        
-            if cv2.waitKey(1) & 0xFF == ord('q'):
+        while True:
+            key = cv2.waitKey(1)
+            if key % 256 == 27:
+                # esc button is press | not apply the SRGAN on the image
                 cv2.destroyWindow("WorkFlow")
                 text = self.OCR(thresh)
                 print(text)
-                f = open("output/output" + basename.replace(".", "") + ".txt", mode = "w+", encoding = "utf-8")
+                f = open("/home/pi/Scan_Documents/output/output" + basename.replace(".", "") + ".txt", mode = "w+", encoding = "utf-8")
                 for word in text.split(" "):
                     f.write(word + " ")
                 f.close()
                 break
-            if cv2.waitKey(1) & 0xFF == ord('u'):
+            if key % 256 == 32:
+                # space button is press | apply the SRGAN on the image True if requirements is satisfied and inverse
                 cv2.destroyWindow("WorkFlow")
                 weight = thresh.shape[1]
                 height = thresh.shape[0]
                 imgUp = thresh
-                if (weight < 700 and height < 1000):
-                    imgUp = cv2.imread(".\Images\\adaptiveThreshold\\" + basename)
-                    imgUp = cv2.merge([imgUp[:,:,0], imgUp[:,:,1], imgUp[:,:,2]])
-                    imgUp = self.upResolution(imgUp, ".\Images\\adaptiveThreshold\\" + basename)
+#                 if (weight < 700 and height < 1000):
+#                     imgUp = cv2.imread("/home/pi/Scan_Documents/Images/adaptiveThreshold/" + basename)
+#                     imgUp = cv2.merge([imgUp[:,:,0], imgUp[:,:,1], imgUp[:,:,2]])
+#                     try:
+#                         imgUp = self.upResolution(imgUp, "/home/pi/Scan_Documents/Images/adaptiveThreshold/" + basename)
+#                     except:
+#                         imgUp = thresh
                 text = self.OCR(imgUp)
                 print(text)
-                f = open("output/output" + basename.replace(".", "") + ".txt", mode = "w+", encoding = "utf-8")
+                f = open("/home/pi/Scan_Documents/output/output" + basename.replace(".", "") + ".txt", mode = "w+", encoding = "utf-8")
                 for word in text.split(" "):
                     f.write(word + " ")
                 f.close()
@@ -345,6 +356,9 @@ class DocScanner:
         """
         # initialize the valtrackbar for the contrast and brightness
         pbt.initialize_Trackbars_BC()
+        
+        cv2.namedWindow("Effect_BC")
+        
         while True:        
             # Get the valtrackbar value
             brightness, contrast = pbt.BrightnessContrast_Effect(0)
@@ -353,11 +367,15 @@ class DocScanner:
             # Show the image
             cv2.imshow("Effect_BC", output)
             # Option to apply effect on image
-            if cv2.waitKey(1) & 0xFF == ord('s'):
+            key = cv2.waitKey(1)
+            
+            if key % 256 == 32:
+                # space button is press | accept the adjust brightness, contrast
                 cv2.destroyWindow("Effect_BC")
                 cv2.destroyWindow("BrightnessContrast")
                 return output
-            if cv2.waitKey(1) & 0xFF == ord('q'):
+            if key % 256 == 27:
+                # esc button is press | not accept the adjust brightness, contrast
                 cv2.destroyWindow("Effect_BC")
                 cv2.destroyWindow("BrightnessContrast")
                 break
@@ -374,14 +392,15 @@ class DocScanner:
         """
             Up the resolution of the image using model SRGAN
         """
+        print("Complete")
         img = image_adaptive_threshold
         model = Generator(4).eval()
-        model.load_state_dict(torch.load('SRGAN/epochs/' + 'netG_epoch_4_50.pth', map_location=lambda storage, loc: storage))
+        model.load_state_dict(torch.load('/home/pi/Scan_Documents/SRGAN/epochs/' + 'netG_epoch_4_50.pth', map_location=lambda storage, loc: storage))
         img = Variable(ToTensor()(img), volatile=True).unsqueeze(0)
         out = model(img)
-        out_img = ToPILImage()(out[0].data.cpu())
+        out_img = ToPILImage()(out[0].data.cpu())        
         basename = os.path.basename(path)
-        out_img.save('./Images/upRe/out_srf_' + str(4) + '_' + basename)
+        out_img.save('/home/pi/Scan_Documents/Images/upRe/out_srf_' + str(4) + '_' + basename)
         return out_img
     
                 
@@ -404,23 +423,34 @@ if MODE == "single":
     cv2.waitKey(0)
 if MODE == "realtime" and TYPE == "normal":
     cap = cv2.VideoCapture(0)
-    cap.set(10 , 150)
-    time.sleep(2)
+    #cap.set(10 , 150)
+    #time.sleep(2)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 
     while True:
-        _, frame = cap.read()
+        ret, frame = cap.read()
         cv2.imshow("RealTimeScan", frame)
         
-        if cv2.waitKey(1) & 0xFF == ord('w'):
-            get_dir = os.listdir("./Images/Scanned")
+        if not ret:
+            print("failed to grab frame")
+            break
+        
+        key = cv2.waitKey(1)
+        if key % 256 == 32:
+            # space key is press
+            get_dir = os.listdir("/home/pi/Scan_Documents/Images/Scanned/")
             numberofFiles = len(get_dir)
             numberofFiles += 1
-            cv2.imwrite("./Images/Scanned/output%d.jpg" %numberofFiles, frame)
+            cv2.imwrite("/home/pi/Scan_Documents/Images/Scanned/output%d.jpg" %numberofFiles, frame)
             Scanner = DocScanner(interactive=True)
-            Scanner.scan("./Images/Scanned/output%d.jpg" %numberofFiles, LSD)
+            Scanner.scan("/home/pi/Scan_Documents/Images/Scanned/output%d.jpg" %numberofFiles, LSD)
         
-        if cv2.waitKey(1) & 0xFF == ord('q'):
+        if key % 256 == 27:
+            # esc key is press
             break
+    cap.release()
+    cv2.destroyAllWindows()
 if MODE == "realtime" and TYPE == "pi":
     pass
     # # Initialize the camera
@@ -442,8 +472,10 @@ if MODE == "realtime" and TYPE == "pi":
     #     cv2.imshow("RealTimeScan", frame.array)
         
     #     raw_capture.truncate(0)
+    #     key = cv2.waitKey(1)
         
-    #     if cv2.waitKey(1) & 0xFF == ord('w'):
+    #     if key % 256 == 32:
+            # space key is press
     #         get_dir = os.listdir("Scanned")
     #         numberofFiles = len(get_dir)
     #         numberofFiles += 1
@@ -451,5 +483,6 @@ if MODE == "realtime" and TYPE == "pi":
     #         Scanner = DocScanner(interactive=True)
     #         Scanner.scan("./Images/Scanned/output%d.jpg" %numberofFiles, LSD)
         
-    #     if cv2.waitKey(1) & 0xFF == ord('q'):
+    #     if key % 256 == 27:
+            # esc key is press
     #         break
