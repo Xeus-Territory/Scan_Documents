@@ -1,0 +1,13 @@
+scipy
+matplotlib
+ocrd-fork-pylsd==0.0.3
+imutils
+scikit-image
+numpy
+opencv-python
+torch
+torchvision
+num2words
+Pillow
+pytesseract
+tqdm
