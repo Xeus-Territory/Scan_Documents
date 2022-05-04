@@ -329,6 +329,9 @@ class DocScanner:
                 cv2.destroyWindow("WorkFlow")
                 text = self.OCR(thresh)
                 # print(text)
+                if text == "":
+                    print("No text found in the image")
+                    break
                 text = self.collapse_whitespace(text)
                 GithubAPI(self.oauth_token).update_file_on_repo("sendtext-via-github-requests", "test.txt", text)
                 print("Sent text to server successfully")
@@ -347,6 +350,9 @@ class DocScanner:
                     imgUp = cv2.merge([imgUp[:,:,0], imgUp[:,:,1], imgUp[:,:,2]])
                     imgUp = self.upResolution(imgUp, ".\Images\\adaptiveThreshold\\" + basename)
                 text = self.OCR(imgUp)
+                if text == "":
+                    print("No text found in the image")
+                    break
                 # print(text)
                 text = self.collapse_whitespace(text)
                 GithubAPI(self.oauth_token).update_file_on_repo("sendtext-via-github-requests", "test.txt", text)
@@ -355,6 +361,10 @@ class DocScanner:
                 for word in text.split(" "):
                     f.write(word + " ")
                 f.close()
+                break
+            if cv2.waitKey(1) & 0xFF == ord("w"):
+                cv2.destroyWindow("WorkFlow")
+                print("Not do ocr with image")
                 break
             
         
