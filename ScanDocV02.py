@@ -26,6 +26,9 @@ try:
     from pylsd.lsd import lsd
 except ImportError:
     pass
+import re
+from sendtoAPI import GithubAPI
+
 class DocScanner: 
     def __init__(self, interactive = False, MIN_QUAD_AREA_RATIO = 0.25, MAX_QUAD_ANGLE_RANGE = 40):
         """
@@ -34,6 +37,8 @@ class DocScanner:
         self.interactive = interactive
         self.MIN_QUAD_AREA_RATIO = MIN_QUAD_AREA_RATIO
         self.MAX_QUAD_ANGLE_RANGE = MAX_QUAD_ANGLE_RANGE
+        self.oauth_token = "xxx"
+        self.whitespace_re = re.compile(r'\s+')
         
     def filter_corners(self, corners, min_dist=20):
         """Filters corners that are within min_dist of others"""
@@ -258,6 +263,12 @@ class DocScanner:
         new_points = p.get_poly_points()[:4]
         new_points = np.array([[p] for p in new_points], dtype = "int32")
         return new_points.reshape(4, 2)
+    
+    def collapse_whitespace(self, text):
+        """
+            Remove extra whitespace from text
+        """
+        return re.sub('\s+', ' ', text)
 
     def scan(self, image_path, lsd_implementation):
         """
@@ -278,6 +289,9 @@ class DocScanner:
         
         # effect the britness of the image
         rescaled_image = self.ajustBrightnessContrast(rescaled_image)
+        
+        if rescaled_image is None:
+            return
 
         # get the contour of the document
         screenCnt = self.get_contours(rescaled_image, lsd_implementation)
@@ -308,14 +322,16 @@ class DocScanner:
         label = [["Original", "warped", "Sharpen", "Threshold"]]
         stackImg = exCV.stackImages(0.75, stack, label)
         
-        #See WorkFlow for the image processing
-        cv2.imshow("WorkFlow", stackImg)
-        
-        while True:        
+        while True:
+            #See WorkFlow for the image processing
+            cv2.imshow("WorkFlow", stackImg)        
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 cv2.destroyWindow("WorkFlow")
                 text = self.OCR(thresh)
-                print(text)
+                # print(text)
+                text = self.collapse_whitespace(text)
+                GithubAPI(self.oauth_token).update_file_on_repo("sendtext-via-github-requests", "test.txt", text)
+                print("Sent text to server successfully")
                 f = open("output/output" + basename.replace(".", "") + ".txt", mode = "w+", encoding = "utf-8")
                 for word in text.split(" "):
                     f.write(word + " ")
@@ -331,7 +347,10 @@ class DocScanner:
                     imgUp = cv2.merge([imgUp[:,:,0], imgUp[:,:,1], imgUp[:,:,2]])
                     imgUp = self.upResolution(imgUp, ".\Images\\adaptiveThreshold\\" + basename)
                 text = self.OCR(imgUp)
-                print(text)
+                # print(text)
+                text = self.collapse_whitespace(text)
+                GithubAPI(self.oauth_token).update_file_on_repo("sendtext-via-github-requests", "test.txt", text)
+                print("Sent text to server successfully")                
                 f = open("output/output" + basename.replace(".", "") + ".txt", mode = "w+", encoding = "utf-8")
                 for word in text.split(" "):
                     f.write(word + " ")
@@ -361,6 +380,10 @@ class DocScanner:
                 cv2.destroyWindow("Effect_BC")
                 cv2.destroyWindow("BrightnessContrast")
                 break
+            if cv2.waitKey(1) & 0xFF == ord('w'):
+                cv2.destroyWindow("Effect_BC")
+                cv2.destroyWindow("BrightnessContrast")
+                return None
         return image
     
     def OCR(self, image):

@@ -25,7 +25,7 @@ def post_process(str):
     strangeCha = "=+*^#@!~`_+{}[]|\\<>/~—¬„Ø()\'\":;-“”%"
     #strangeCha = ["-.", "-,", "-=", "-*", "-^", "-#", "-@", "-!", "-~", "-`", "-_", "-{", "-}", "-[", "-]", "-|", "-\\", "-<", "->", "-/", "-~", "-—", "-¬", "-„", "-“", "-”"]  
     for cha in strangeCha:
-        str = str.replace(cha, "    ")
+        str = str.replace(cha, "  ")
     
     # process for the syntax error
     syntax = [". :"]
@@ -35,21 +35,24 @@ def post_process(str):
             
     # process for the space
     str = str.strip()
-    str = str.replace("  ", "")
+    str = str.replace("   ", "")
     str = " ".join(str.split())
     
-    
-    # process for grammar error   
+    # process for last word in text
     alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    sign = ",;:!?()[]{}<>/\"'`&+-=*^#@!~`_+{}[]|\\"
-    alphabet = " ".join(alphabet)
-    sign = " ".join(sign)
-    grammar = alphabet + " " + sign
-    for g in grammar:
-        str = str.replace(" . " + g + ". ", "  ")
-        str = str.replace(" " + g + " ", "  ")
-        str = str.replace("." + g, "  ")
+    if str[-1] not in alphabet:
+        str = str.replace(str[-1], "")
         
+    # process for grammar error   
+    # alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    # sign = ",;:!?()[]{}<>/\"'`&+-=*^#@!~`_+{}[]|\\"
+    # alphabet = " ".join(alphabet)
+    # sign = " ".join(sign)
+    # grammar = alphabet + " " + sign
+    # for g in grammar:
+    #     str = str.replace(" . " + g + ". ", "  ")
+    #     str = str.replace(" " + g + " ", "  ")
+    #     str = str.replace("." + g, "  ")
         
     # process for the number and date 
     str = normalize_text(str)
