@@ -325,8 +325,10 @@ class DocScanner:
         cv2.imwrite(".\Images\\adaptiveThreshold\\" + basename, thresh)
         
         # show the transformed image
-        stack = [[rescaled_image, warped, sharpen, thresh]]
-        label = [["Original", "warped", "Sharpen", "Threshold"]]
+        # stack = [[rescaled_image, warped, sharpen, thresh]]
+        # label = [["Original", "warped", "Sharpen", "Threshold"]]
+        stack = [[rescaled_image, thresh]]
+        label = [["Original", "Threshold"]]
         stackImg = exCV.stackImages(0.75, stack, label)
         
         while True:
