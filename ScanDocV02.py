@@ -28,6 +28,13 @@ except ImportError:
     pass
 import re
 from sendtoAPI import GithubAPI
+import requests
+import json
+from urllib.request import urlopen
+import sounddevice as sd
+import soundfile as sf
+import warnings
+warnings.filterwarnings("ignore")
 
 class DocScanner: 
     def __init__(self, interactive = False, MIN_QUAD_AREA_RATIO = 0.25, MAX_QUAD_ANGLE_RANGE = 40):
@@ -339,6 +346,8 @@ class DocScanner:
                 for word in text.split(" "):
                     f.write(word + " ")
                 f.close()
+                url = self.get_url_API()
+                self.play_audio(url)
                 break
             if cv2.waitKey(1) & 0xFF == ord('u'):
                 cv2.destroyWindow("WorkFlow")
@@ -361,6 +370,8 @@ class DocScanner:
                 for word in text.split(" "):
                     f.write(word + " ")
                 f.close()
+                url = self.get_url_API()
+                self.play_audio(url)
                 break
             if cv2.waitKey(1) & 0xFF == ord("w"):
                 cv2.destroyWindow("WorkFlow")
@@ -417,6 +428,47 @@ class DocScanner:
         out_img.save('./Images/upRe/out_srf_' + str(4) + '_' + basename)
         return out_img
     
+    def get_url_API(self):
+        id_previous = 0
+        url_need = ""
+        first = True
+
+        while True:
+            data = requests.get('https://text2speech-api.herokuapp.com/audio')
+            if data.json()[-1]['id'] != id_previous and first == True:
+                id_previous = data.json()[-1]['id']
+                first = False
+                continue
+            if data.json()[-1]['id'] != id_previous and first == False:
+                id_previous = data.json()[-1]['id']
+                first = True
+                url_need = data.json()[-1]['url']
+                break
+            if data.json()[-1]['id'] == id_previous and first == False:
+                time.sleep(2)
+                continue
+        return url_need
+    
+    def play_audio(self, url):
+        get_dir = os.listdir("./audio/") 
+        numberofFiles = len(get_dir)
+        actual_number = numberofFiles + 1
+        file_name = "./audio/" + str(actual_number) + ".wav"
+        with open(file_name, 'wb') as a:
+            resp = requests.get(url)
+            if resp.status_code == 200:
+                a.write(resp.content)
+                print('downloaded')
+            else:
+                print(resp.reason)
+                exit(1)
+                
+        data, fs = sf.read(file_name, dtype='float32')  
+        sd.play(data, fs)
+        status = sd.wait()
+
+
+    
                 
 parser = argparse.ArgumentParser(description = "Get text from image files")
 action_choices = ["single", "realtime"]
@@ -436,7 +488,7 @@ if MODE == "single":
     Scanner.scan(IMAGE, LSD)
     cv2.waitKey(0)
 if MODE == "realtime" and TYPE == "normal":
-    cap = cv2.VideoCapture(0)
+    cap = cv2.VideoCapture("http://192.168.11.7:4747/video") # Change the IP address to your computer's IP address
     cap.set(10 , 150)
     time.sleep(2)
 

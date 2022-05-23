@@ -24,7 +24,7 @@ def post_process(str):
     try:
         
         # process for the strange character
-        strangeCha = "=+*^#@!~`_+{}[]|\\<>/~—¬„Ø()\'\":;-“”%"
+        strangeCha = "=+*^#@!~`_+{}[]|\\<>/~—¬„Ø()\'\":;-“”%ø"
         #strangeCha = ["-.", "-,", "-=", "-*", "-^", "-#", "-@", "-!", "-~", "-`", "-_", "-{", "-}", "-[", "-]", "-|", "-\\", "-<", "->", "-/", "-~", "-—", "-¬", "-„", "-“", "-”"]  
         for cha in strangeCha:
             str = str.replace(cha, "  ")
@@ -37,7 +37,7 @@ def post_process(str):
                 
         # process for the space
         str = str.strip()
-        str = str.replace("   ", "")
+        str = str.replace("    ", "")
         str = " ".join(str.split())
         
         # process for last word in text
