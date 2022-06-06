@@ -1,3 +1,4 @@
+from pickle import FALSE
 import time
 from scipy.spatial import distance as dist
 from matplotlib.patches import Polygon
@@ -44,7 +45,7 @@ class DocScanner:
         self.interactive = interactive
         self.MIN_QUAD_AREA_RATIO = MIN_QUAD_AREA_RATIO
         self.MAX_QUAD_ANGLE_RANGE = MAX_QUAD_ANGLE_RANGE
-        self.oauth_token = "xxx"
+        self.oauth_token = "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"
         self.whitespace_re = re.compile(r'\s+')
         
     def filter_corners(self, corners, min_dist=20):
@@ -431,6 +432,9 @@ class DocScanner:
         return out_img
     
     def get_url_API(self):
+        """
+            Get url audio from API herokuapp
+        """
         id_previous = 0
         url_need = ""
         first = True
@@ -452,6 +456,9 @@ class DocScanner:
         return url_need
     
     def play_audio(self, url):
+        """
+            Play audio from url
+        """
         get_dir = os.listdir("./audio/") 
         numberofFiles = len(get_dir)
         actual_number = numberofFiles + 1
@@ -478,19 +485,24 @@ parser.add_argument("-m" ,"--mode", help = "Scan on single image or realtime cam
 parser.add_argument("-t", "--type", help = "Scan realtime camera by piCamera or normal camera", choices = ["pi", "normal"], default = "normal", required = (action_choices[1] in argv))
 parser.add_argument("-i" ,"--image", help = "Path to image file", required=(action_choices[0] in argv))
 parser.add_argument("-lsd", "--line_segmentation_detection", help = "Use line segmentation detection", default = "opencv", choices = ["opencv", "pylsd"], required = True)
+parser.add_argument("-cam", "--camera", help = "What type camera to use", default="0", required = (action_choices[1] in argv))
 opt = parser.parse_args()
 
 MODE = opt.mode
 IMAGE = opt.image
 TYPE = opt.type
 LSD = opt.line_segmentation_detection
+CAMERA = opt.camera
+
+if CAMERA == "0":
+    CAMERA = 0
 
 if MODE == "single":
     Scanner = DocScanner(interactive = True)
     Scanner.scan(IMAGE, LSD)
     cv2.waitKey(0)
 if MODE == "realtime" and TYPE == "normal":
-    cap = cv2.VideoCapture("http://192.168.11.7:4747/video") # Change the IP address to your computer's IP address
+    cap = cv2.VideoCapture(CAMERA) # Change the IP address to your computer's IP address
     cap.set(10 , 150)
     time.sleep(2)
 
@@ -510,33 +522,3 @@ if MODE == "realtime" and TYPE == "normal":
             break
 if MODE == "realtime" and TYPE == "pi":
     pass
-    # # Initialize the camera
-    # camera = PiCamera()
-    
-    # # Set the camera resolution
-    # camera.resolution = (640, 480)
-    
-    # # Set the number of frames per second
-    # camera.framerate = 32
-    
-    # # Generates a 3D RGB array and stores it in rawCapture
-    # raw_capture = PiRGBArray(camera, size=(640, 480))
-    
-    # # Wait a certain number of seconds to allow the camera time to warmup
-    
-    # # Capture frames continuously from the camera
-    # for frame in camera.capture_continuous(raw_capture, format="bgr", use_video_port=True):
-    #     cv2.imshow("RealTimeScan", frame.array)
-        
-    #     raw_capture.truncate(0)
-        
-    #     if cv2.waitKey(1) & 0xFF == ord('w'):
-    #         get_dir = os.listdir("Scanned")
-    #         numberofFiles = len(get_dir)
-    #         numberofFiles += 1
-    #         cv2.imwrite("./Images/Scanned/output%d.jpg" %numberofFiles, frame)
-    #         Scanner = DocScanner(interactive=True)
-    #         Scanner.scan("./Images/Scanned/output%d.jpg" %numberofFiles, LSD)
-        
-    #     if cv2.waitKey(1) & 0xFF == ord('q'):
-    #         break

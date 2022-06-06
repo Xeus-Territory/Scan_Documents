@@ -24,15 +24,17 @@ def post_process(str):
     try:
         
         # process for the strange character
-        strangeCha = "=+*^#@!~`_+{}[]|\\<>/~—¬„Ø()\'\":;-“”%ø"
+        strangeCha = "=+*^#@!~`_+{}[]|\\<>/~—¬„Ø()\'\":;-“”%ø?äˆø‡$¡"
         #strangeCha = ["-.", "-,", "-=", "-*", "-^", "-#", "-@", "-!", "-~", "-`", "-_", "-{", "-}", "-[", "-]", "-|", "-\\", "-<", "->", "-/", "-~", "-—", "-¬", "-„", "-“", "-”"]  
         for cha in strangeCha:
             str = str.replace(cha, "  ")
         
         # process for the syntax error
-        syntax = [". :"]
+        syntax = [". :", "..", "..."]
         for s in syntax:
             if s == ". :":
+                str = str.replace(s, ".")
+            if s == ".." or s == "...":
                 str = str.replace(s, ".")
                 
         # process for the space
@@ -63,6 +65,28 @@ def post_process(str):
         str = ""
         
     return str
+
+def increseAccuracy(img):
+    """
+        Increase accuracy of tesseract by split image 2 part and OCR in 2 part | decrease time but not increase accuracy
+    """
+    # increase accuracy
+    (h_thr, w_thr) = img.shape[:2]
+    s_idx = 0
+    e_idx = int(h_thr / 2)
+    last_re = ""
+    for _ in range(0, 2):
+        crp = img[s_idx:e_idx, 0:w_thr]
+        (h_crp, w_crp) = crp.shape[:2]
+        crp = cv2.resize(crp, (w_crp*2, h_crp*2))
+        crp = cv2.erode(crp, None, iterations=1)
+        s_idx = e_idx
+        e_idx = s_idx + int(h_thr / 2)
+        result = pytesseract.image_to_string(crp, lang = "vie")
+        result = post_process(result)
+        last_re = last_re + " " + result
+        cv2.waitKey(0)
+    return last_re
 
 def get_string(img):
     """
