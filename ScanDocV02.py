@@ -28,6 +28,10 @@ try:
     from pylsd.lsd import lsd
 except ImportError:
     pass
+from sendtoAPI import GithubAPI
+import re
+import requests
+
 class DocScanner: 
     def __init__(self, interactive = False, MIN_QUAD_AREA_RATIO = 0.25, MAX_QUAD_ANGLE_RANGE = 40):
         """
@@ -36,6 +40,8 @@ class DocScanner:
         self.interactive = interactive
         self.MIN_QUAD_AREA_RATIO = MIN_QUAD_AREA_RATIO
         self.MAX_QUAD_ANGLE_RANGE = MAX_QUAD_ANGLE_RANGE
+        self.whitespace_re = re.compile(r'\s+')
+        self.oauth_token = "xxx"
         
     def filter_corners(self, corners, min_dist=20):
         """Filters corners that are within min_dist of others"""
@@ -260,6 +266,9 @@ class DocScanner:
         new_points = p.get_poly_points()[:4]
         new_points = np.array([[p] for p in new_points], dtype = "int32")
         return new_points.reshape(4, 2)
+    
+    def collapse_whitespace(self, text):
+        return re.sub(self.whitespace_re, ' ', text)
 
     def scan(self, image_path, lsd_implementation):
         """
@@ -280,6 +289,9 @@ class DocScanner:
         
         # effect the britness of the image
         rescaled_image = self.ajustBrightnessContrast(rescaled_image)
+        
+        if rescaled_image is None:
+            return
 
         # get the contour of the document
         screenCnt = self.get_contours(rescaled_image, lsd_implementation)
@@ -306,34 +318,47 @@ class DocScanner:
         cv2.imwrite("/home/pi/Scan_Documents/Images/adaptiveThreshold/" + basename, thresh)
         
         # show the transformed image
-        stack = [[rescaled_image, warped, sharpen, thresh]]
-        label = [["Original", "warped", "Sharpen", "Threshold"]]
+        # stack = [[rescaled_image, warped, sharpen, thresh]]
+        # label = [["Original", "warped", "Sharpen", "Threshold"]]
+        stack = [[rescaled_image, thresh]]
+        label = [["Original", "Threshold"]]
         stackImg = exCV.stackImages(0.75, stack, label)
         
         # create the windows for show workflow
         cv2.namedWindow("WorkFlow")
         
-        #See WorkFlow for the image processing
-        cv2.imshow("WorkFlow", stackImg)
         
         while True:
+            #See WorkFlow for the image processing
+            cv2.imshow("WorkFlow", stackImg)
             key = cv2.waitKey(1)
             if key % 256 == 27:
                 # esc button is press | not apply the SRGAN on the image
                 cv2.destroyWindow("WorkFlow")
                 text = self.OCR(thresh)
-                print(text)
+                if text == "":
+                    print("Not have text detect in image")
+                    break
+                #print(text)
+                text = self.collapse_whitespace(text)
+                GithubAPI(self.oauth_token).update_file_on_repo("sendtext-via-github-requests", "test.txt", text)
+                print("Complete send send text for server")                
                 f = open("/home/pi/Scan_Documents/output/output" + basename.replace(".", "") + ".txt", mode = "w+", encoding = "utf-8")
                 for word in text.split(" "):
                     f.write(word + " ")
                 f.close()
+                url = self.get_url_API()
+                print("Url: ", url)
+                cmd = "curl -s " + str(url) + "| aplay"
+                print(cmd)
+                os.system(cmd)
                 break
             if key % 256 == 32:
                 # space button is press | apply the SRGAN on the image True if requirements is satisfied and inverse
                 cv2.destroyWindow("WorkFlow")
-                weight = thresh.shape[1]
-                height = thresh.shape[0]
-                imgUp = thresh
+#                 weight = thresh.shape[1]
+#                 height = thresh.shape[0]
+#                 imgUp = thresh
 #                 if (weight < 700 and height < 1000):
 #                     imgUp = cv2.imread("/home/pi/Scan_Documents/Images/adaptiveThreshold/" + basename)
 #                     imgUp = cv2.merge([imgUp[:,:,0], imgUp[:,:,1], imgUp[:,:,2]])
@@ -341,12 +366,28 @@ class DocScanner:
 #                         imgUp = self.upResolution(imgUp, "/home/pi/Scan_Documents/Images/adaptiveThreshold/" + basename)
 #                     except:
 #                         imgUp = thresh
-                text = self.OCR(imgUp)
-                print(text)
+                text = self.OCR(thresh)
+                #print(text)
+                if text == "":
+                    print("Not have text detect in image")
+                    break
+                text = self.collapse_whitespace(text)
+                GithubAPI(self.oauth_token).update_file_on_repo("sendtext-via-github-requests", "test.txt", text)
+                print("Complete send send text for server")
                 f = open("/home/pi/Scan_Documents/output/output" + basename.replace(".", "") + ".txt", mode = "w+", encoding = "utf-8")
                 for word in text.split(" "):
                     f.write(word + " ")
                 f.close()
+                url = self.get_url_API()
+                print("Url: ", url)
+                cmd = "curl -s " + str(url) + "| aplay"
+                print(cmd)
+                os.system(cmd)
+                break
+            if key % 256 == 113:
+                # q button is press | not transfer text from image and send it to repo
+                cv2.destroyWindow("WorkFlow")
+                print("Not do ocr with image")
                 break
             
         
@@ -379,6 +420,11 @@ class DocScanner:
                 cv2.destroyWindow("Effect_BC")
                 cv2.destroyWindow("BrightnessContrast")
                 break
+            if key % 256 == 113:
+                # q button is press | exit process adjust and return realtime
+                cv2.destroyWindow("Effect_BC")
+                cv2.destroyWindow("BrightnessContrast")
+                return None
         return image
     
     def OCR(self, image):
@@ -402,6 +448,27 @@ class DocScanner:
         basename = os.path.basename(path)
         out_img.save('/home/pi/Scan_Documents/Images/upRe/out_srf_' + str(4) + '_' + basename)
         return out_img
+
+    def get_url_API(self):
+        id_previous = 0
+        url_need = ""
+        first = True
+
+        while True:
+            data = requests.get('https://text2speech-api.herokuapp.com/audio')
+            if data.json()[-1]['id'] != id_previous and first == True:
+                id_previous = data.json()[-1]['id']
+                first = False
+                continue
+            if data.json()[-1]['id'] != id_previous and first == False:
+                id_previous = data.json()[-1]['id']
+                first = True
+                url_need = data.json()[-1]['url']
+                break
+            if data.json()[-1]['id'] == id_previous and first == False:
+                time.sleep(2)
+                continue
+        return url_need
     
                 
 parser = argparse.ArgumentParser(description = "Get text from image files")
@@ -410,23 +477,29 @@ parser.add_argument("-m" ,"--mode", help = "Scan on single image or realtime cam
 parser.add_argument("-t", "--type", help = "Scan realtime camera by piCamera or normal camera", choices = ["pi", "normal"], default = "normal", required = (action_choices[1] in argv))
 parser.add_argument("-i" ,"--image", help = "Path to image file", required=(action_choices[0] in argv))
 parser.add_argument("-lsd", "--line_segmentation_detection", help = "Use line segmentation detection", default = "opencv", choices = ["opencv", "pylsd"], required = True)
+parser.add_argument("-cam", "--camera", help= "Which type camera want to use?", default= "0", required= (action_choices[1] in argv))
 opt = parser.parse_args()
 
 MODE = opt.mode
 IMAGE = opt.image
 TYPE = opt.type
 LSD = opt.line_segmentation_detection
+CAMERA = opt.camera
+
+if CAMERA == "0":
+    CAMERA = 0
 
 if MODE == "single":
     Scanner = DocScanner(interactive = True)
     Scanner.scan(IMAGE, LSD)
     cv2.waitKey(0)
 if MODE == "realtime" and TYPE == "normal":
-    cap = cv2.VideoCapture(0)
+    cap = cv2.VideoCapture(CAMERA)
     #cap.set(10 , 150)
     #time.sleep(2)
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+    #Set frame of camera with ratio 16:9
+    #cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+    #cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 
     while True:
         ret, frame = cap.read()
@@ -443,7 +516,7 @@ if MODE == "realtime" and TYPE == "normal":
             numberofFiles = len(get_dir)
             numberofFiles += 1
             cv2.imwrite("/home/pi/Scan_Documents/Images/Scanned/output%d.jpg" %numberofFiles, frame)
-            Scanner = DocScanner(interactive=True)
+            Scanner = DocScanner()
             Scanner.scan("/home/pi/Scan_Documents/Images/Scanned/output%d.jpg" %numberofFiles, LSD)
         
         if key % 256 == 27:
