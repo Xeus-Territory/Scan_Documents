@@ -45,7 +45,7 @@ class DocScanner:
         self.interactive = interactive
         self.MIN_QUAD_AREA_RATIO = MIN_QUAD_AREA_RATIO
         self.MAX_QUAD_ANGLE_RANGE = MAX_QUAD_ANGLE_RANGE
-        self.oauth_token = "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"
+        self.oauth_token = "xxx"
         self.whitespace_re = re.compile(r'\s+')
         
     def filter_corners(self, corners, min_dist=20):
@@ -515,7 +515,7 @@ if MODE == "realtime" and TYPE == "normal":
             numberofFiles = len(get_dir)
             numberofFiles += 1
             cv2.imwrite("./Images/Scanned/output%d.jpg" %numberofFiles, frame)
-            Scanner = DocScanner(interactive=True)
+            Scanner = DocScanner()
             Scanner.scan("./Images/Scanned/output%d.jpg" %numberofFiles, LSD)
         
         if cv2.waitKey(1) & 0xFF == ord('q'):
